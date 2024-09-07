@@ -75,22 +75,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .unwrap()
             .tick_strings(&["|", "/", "-", "\\", "|", "/", "-", "\\"])); // Spinner style
         spinner.enable_steady_tick(Duration::from_millis(120));
-        let resp = open_ai.invoke(input).await;
-        // Stop the spinner once the operation is done
-        spinner.finish_and_clear();
-
-        match resp {
-            Ok(resp) => {
-                println!("{}",resp)
-            }
-            Err(e) => {
-                error!("Error invoking OpenAI: {:?}", e);
-                continue;
-            }
-        }
-
-
-        // We can also guide it's response with a prompt template. Prompt templates are used to convert raw user input to a better input to the LLM.
+        // We can also guide it's response with a prompt template.
+        // Prompt templates are used to convert raw user input to a better input to the LLM.
         let prompt = message_formatter![
             fmt_message!(Message::new_system_message(
                 "You are world class technical documentation writer."
@@ -106,17 +92,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .build()
             .unwrap();
 
-        match chain
+        let res =  chain
             .invoke(prompt_args! {
-            "input" => "Quien es el escritor de 20000 millas de viaje submarino",
+            "input" => input,
                })
-            .await
+            .await;
+        spinner.finish_and_clear();
+        match res
         {
             Ok(result) => {
-                info!("Result: {:?}", result);
+                println!("{}", result.yellow());
             }
             Err(e) => panic!("Error invoking LLMChain: {:?}", e),
         }
+
+
+
+
+
     }
 
     Ok(())
