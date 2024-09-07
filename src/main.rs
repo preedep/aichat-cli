@@ -43,8 +43,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     })
     .expect("Error setting Ctrl-C handler");
 
-    let mut history_list = Vec::new();
+    /*
+        Load knowledge
+    */
 
+    let mut history_list = Vec::new();
     while running.load(Ordering::SeqCst) {
         // Check if Ctrl-C was pressed before continuing the loop
         if !running.load(Ordering::SeqCst) {
@@ -72,6 +75,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if input.is_empty() || input == "exit" {
             break;
         }
+        // Clear the history list
+        if input == "clear" {
+            history_list.clear();
+            continue;
+        }
+
 
         // Add the input to the history list
         let m = Message::new_human_message(input);
@@ -93,6 +102,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             fmt_message!(Message::new_system_message(
                 "You are world class technical documentation writer."
             )),
+            fmt_placeholder!("knowledge"),
             fmt_placeholder!("history"),
             fmt_template!(HumanMessagePromptTemplate::new(template_fstring!(
                 "{input}", "input"
@@ -107,9 +117,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let res = chain
             .invoke(prompt_args! {
-            "input" => input,
+                "input" => input,
                 "history" => history_list
-               })
+               }
+            )
             .await;
 
         // Finish the spinner and clear the message
