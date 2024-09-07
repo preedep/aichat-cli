@@ -13,13 +13,18 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use std::{fs, io, thread};
+use serde_json::Value;
 
 // Function to load knowledge from a file (Refactor knowledge loading logic)
 fn load_knowledge(file_path: &str) -> String {
-    fs::read_to_string(file_path).unwrap_or_else(|_| {
-        error!("Failed to load knowledge file.");
-        String::new()
-    })
+    let file_content = fs::read_to_string(file_path).expect("Failed to read JSON file");
+    let parsed_json: Value = serde_json::from_str(&file_content).expect("Failed to parse JSON");
+
+    let mut knowledge = String::new();
+
+
+
+    knowledge
 }
 
 // Function to create the Azure OpenAI configuration (Refactor LLM setup)
