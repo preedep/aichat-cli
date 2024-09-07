@@ -13,3 +13,5 @@ tokio = { version = "1", features = ["full"] }
 dotenv = "0.15"
 langchain-rust = { version = "4.4" , features = ["surrealdb"] }
 ctrlc = "3.4"
+indicatif = "0.17"
+colored = "2.1"

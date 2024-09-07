@@ -9,6 +9,9 @@ use std::io;
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
+use colored::Colorize;
+use indicatif::{ProgressBar, ProgressStyle};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -44,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if !running.load(Ordering::SeqCst) {
             break;
         }
-        print!("Please enter some text and press Enter: ");
+        print!("{}", "Please enter some text and press Enter: ".bright_green());
         // Flush stdout to ensure the message is displayed immediately
         io::stdout().flush().unwrap();
         let mut input = String::new();
@@ -59,16 +62,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             error!("Error reading input: {:?}", result);
             continue;
         }
-
         // Trim the input and check if it's empty or "exit"
         let input = input.trim();
         if input.is_empty() || input == "exit" {
             break;
         }
 
+        // Create a spinner with a custom message
+        let spinner = ProgressBar::new_spinner();
+        spinner.set_message(format!("{} Asking...", "💡".blue()));
+        spinner.set_style(ProgressStyle::with_template("{spinner:.green} {msg}")
+            .unwrap()
+            .tick_strings(&["|", "/", "-", "\\", "|", "/", "-", "\\"])); // Spinner style
+        spinner.enable_steady_tick(Duration::from_millis(120));
+        let resp = open_ai.invoke(input).await;
+        // Stop the spinner once the operation is done
+        spinner.finish_and_clear();
 
-        let resp = open_ai.invoke(input).await.unwrap();
-        info!("{}", resp);
+        match resp {
+            Ok(resp) => {
+                println!("{}",resp)
+            }
+            Err(e) => {
+                error!("Error invoking OpenAI: {:?}", e);
+                continue;
+            }
+        }
+
 
         // We can also guide it's response with a prompt template. Prompt templates are used to convert raw user input to a better input to the LLM.
         let prompt = message_formatter![
