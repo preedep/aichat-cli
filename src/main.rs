@@ -16,7 +16,6 @@ use std::{fs, io, thread};
 use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 
 #[derive(Debug, Serialize, Deserialize)]
