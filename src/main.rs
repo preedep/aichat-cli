@@ -1,4 +1,6 @@
 use colored::Colorize;
+use dialoguer::theme::ColorfulTheme;
+use dialoguer::Select;
 use indicatif::{ProgressBar, ProgressStyle};
 use langchain_rust::chain::{Chain, LLMChainBuilder};
 use langchain_rust::llm::{AzureConfig, OpenAI};
@@ -8,22 +10,19 @@ use langchain_rust::{
     fmt_message, fmt_placeholder, fmt_template, message_formatter, prompt_args, template_fstring,
 };
 use log::{debug, error};
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use std::{fs, io, thread};
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
-use serde::{Deserialize, Serialize};
-
 
 #[derive(Debug, Serialize, Deserialize)]
 struct PIIDataDescription {
     #[serde(rename = "pii_description")]
-    pii_descriptions : Vec<String>,
+    pii_descriptions: Vec<String>,
     #[serde(rename = "exclude_pii_description")]
-    exclude_pii_descriptions : Vec<String>
+    exclude_pii_descriptions: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -35,34 +34,38 @@ struct MQTopicDescription {
     #[serde(rename = "publisher")]
     publisher: String,
     #[serde(rename = "remark")]
-    remark: String
+    remark: String,
 }
 #[derive(Debug, Serialize, Deserialize)]
 struct MQDataDescription {
     #[serde(rename = "mq_data_background")]
-    mq_descriptions : String,
+    mq_descriptions: String,
     #[serde(rename = "mq_data_current_state")]
-    mq_data_current_state : String,
+    mq_data_current_state: String,
     #[serde(rename = "mq_technology")]
-    mq_technology : String,
+    mq_technology: String,
     #[serde(rename = "mq_pub_sub_topics")]
-    mq_pub_sub_topics : Vec<MQTopicDescription>
+    mq_pub_sub_topics: Vec<MQTopicDescription>,
 }
 // Function to load knowledge from a file (Refactor knowledge loading logic)
-fn load_pii_knowledge(file_path: &str) -> String
-{
+fn load_pii_knowledge(file_path: &str) -> String {
     let file_content = fs::read_to_string(file_path).expect("Failed to read JSON file");
-    let parsed_json: PIIDataDescription = serde_json::from_str(&file_content).expect("Failed to parse JSON");
+    let parsed_json: PIIDataDescription =
+        serde_json::from_str(&file_content).expect("Failed to parse JSON");
 
     debug!("Parsed JSON: {:?}", parsed_json);
 
     let mut knowledge = String::new();
-    knowledge.push_str("Here is the knowledge about Category of PII (Personal Identifiable Information) :\n");
+    knowledge.push_str(
+        "Here is the knowledge about Category of PII (Personal Identifiable Information) :\n",
+    );
     for desc in parsed_json.pii_descriptions {
         knowledge.push_str(&desc);
         knowledge.push_str("\n");
     }
-    knowledge.push_str("Here is the knowledge about Category of Non-PII (Personal Identifiable Information) :\n");
+    knowledge.push_str(
+        "Here is the knowledge about Category of Non-PII (Personal Identifiable Information) :\n",
+    );
     for desc in parsed_json.exclude_pii_descriptions {
         knowledge.push_str(&desc);
         knowledge.push_str("\n");
@@ -71,7 +74,8 @@ fn load_pii_knowledge(file_path: &str) -> String
 }
 fn load_mq_knowledge(file_path: &str) -> String {
     let file_content = fs::read_to_string(file_path).expect("Failed to read JSON file");
-    let parsed_json: MQDataDescription = serde_json::from_str(&file_content).expect("Failed to parse JSON");
+    let parsed_json: MQDataDescription =
+        serde_json::from_str(&file_content).expect("Failed to parse JSON");
 
     debug!("Parsed JSON: {:?}", parsed_json);
 
@@ -218,10 +222,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
     dotenv::dotenv().ok();
 
-    let mut knowledge = String::new();//load_knowledge("dataset/pii_data.json");
+    let mut knowledge = String::new(); //load_knowledge("dataset/pii_data.json");
 
     // Load knowledge from a file
-     let open_ai = create_openai();
+    let open_ai = create_openai();
 
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
