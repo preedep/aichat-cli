@@ -13,17 +13,36 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use std::{fs, io, thread};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+
+#[derive(Debug, Serialize, Deserialize)]
+struct PIIDataDescription {
+    #[serde(rename = "pii_description")]
+    pii_descriptions : Vec<String>,
+    #[serde(rename = "exclude_pii_description")]
+    exclude_pii_descriptions : Vec<String>
+}
 
 // Function to load knowledge from a file (Refactor knowledge loading logic)
 fn load_knowledge(file_path: &str) -> String {
     let file_content = fs::read_to_string(file_path).expect("Failed to read JSON file");
-    let parsed_json: Value = serde_json::from_str(&file_content).expect("Failed to parse JSON");
+    let parsed_json: PIIDataDescription = serde_json::from_str(&file_content).expect("Failed to parse JSON");
+
+    debug!("Parsed JSON: {:?}", parsed_json);
 
     let mut knowledge = String::new();
-
-
-
+    knowledge.push_str("Here is the knowledge about Category of PII (Personal Identifiable Information) :\n");
+    for desc in parsed_json.pii_descriptions {
+        knowledge.push_str(&desc);
+        knowledge.push_str("\n");
+    }
+    knowledge.push_str("Here is the knowledge about Category of Non-PII (Personal Identifiable Information) :\n");
+    for desc in parsed_json.exclude_pii_descriptions {
+        knowledge.push_str(&desc);
+        knowledge.push_str("\n");
+    }
     knowledge
 }
 
@@ -117,7 +136,7 @@ async fn process_with_llm(
 
     if let Ok(result) = res {
         history_list.push(Message::new_ai_message(&result));
-        typewriter(&result, 100, running);
+        typewriter(&result, 50, running);
         Ok(result)
     } else {
         Err(Box::new(res.err().unwrap()))
@@ -143,7 +162,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv::dotenv().ok();
 
     // Load knowledge from a file
-    let knowledge = "";//load_knowledge("dataset/app_info.json");
+    let knowledge = load_knowledge("dataset/pii_data.json");
     let open_ai = create_openai();
 
     let running = Arc::new(AtomicBool::new(true));
@@ -179,7 +198,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }),
             )
             .await;
-            //spinner.finish_and_clear();
 
             if let Err(e) = res {
                 error!("Error invoking LLMChain: {:?}", e);
