@@ -13,6 +13,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use std::{fs, io, thread};
+use dialoguer::Select;
+use dialoguer::theme::ColorfulTheme;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -25,8 +27,18 @@ struct PIIDataDescription {
     exclude_pii_descriptions : Vec<String>
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct MQDataDescription {
+    #[serde(rename = "mq_data_background")]
+    mq_descriptions : String,
+    #[serde(rename = "mq_data_current_state")]
+    mq_data_current_state : String,
+    #[serde(rename = "mq_technology")]
+    mq_technology : String
+}
 // Function to load knowledge from a file (Refactor knowledge loading logic)
-fn load_knowledge(file_path: &str) -> String {
+fn load_pii_knowledge(file_path: &str) -> String
+{
     let file_content = fs::read_to_string(file_path).expect("Failed to read JSON file");
     let parsed_json: PIIDataDescription = serde_json::from_str(&file_content).expect("Failed to parse JSON");
 
@@ -45,7 +57,24 @@ fn load_knowledge(file_path: &str) -> String {
     }
     knowledge
 }
+fn load_mq_knowledge(file_path: &str) -> String {
+    let file_content = fs::read_to_string(file_path).expect("Failed to read JSON file");
+    let parsed_json: MQDataDescription = serde_json::from_str(&file_content).expect("Failed to parse JSON");
 
+    debug!("Parsed JSON: {:?}", parsed_json);
+
+    let mut knowledge = String::new();
+    knowledge.push_str("Here is the knowledge about Message sync MQ Pub/Sub :\n");
+    knowledge.push_str(&parsed_json.mq_descriptions);
+    knowledge.push_str("\n");
+    knowledge.push_str("Here is the knowledge about Message sync MQ Pub/Sub Current State :\n");
+    knowledge.push_str(&parsed_json.mq_data_current_state);
+    knowledge.push_str("\n");
+    knowledge.push_str("Here is the knowledge about Message sync MQ Pub/Sub Technology :\n");
+    knowledge.push_str(&parsed_json.mq_technology);
+    knowledge.push_str("\n");
+    knowledge
+}
 // Function to create the Azure OpenAI configuration (Refactor LLM setup)
 fn create_openai() -> OpenAI<AzureConfig> {
     let open_ai_url = std::env::var("OPEN_AI_SERVICE_URL").expect("OPEN_AI_SERVICE_URL is not set");
@@ -161,9 +190,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
     dotenv::dotenv().ok();
 
+    let mut knowledge = String::new();//load_knowledge("dataset/pii_data.json");
+
     // Load knowledge from a file
-    let knowledge = load_knowledge("dataset/pii_data.json");
-    let open_ai = create_openai();
+     let open_ai = create_openai();
 
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
@@ -181,6 +211,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(input) = get_user_input(running.clone()) {
             if input == "clear" {
                 history_list.clear();
+                continue;
+            }
+            if input == ".k" {
+                // List of choices
+                let choices = vec!["PII Data", "E-Kafka Topic", "MQ Pub/Sub"];
+
+                // Create a selection prompt
+                let selection = Select::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Please Choose an knowledge source")
+                    .items(&choices)
+                    .default(0) // Default selection
+                    .interact()
+                    .unwrap();
+
+                println!("You selected: {}", choices[selection]);
+                knowledge.clear();
+                match selection {
+                    0 => knowledge.push_str(&load_pii_knowledge("dataset/pii_data.json")),
+                    1 => knowledge.push_str(""),
+                    2 => knowledge.push_str(&load_mq_knowledge("dataset/mq_data.json")),
+                    _ => knowledge.push_str(""),
+                }
+
                 continue;
             }
 
